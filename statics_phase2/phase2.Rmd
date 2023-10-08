@@ -1,0 +1,371 @@
+---
+title: "phase2"
+author: "MohammadMehdi zare 98100431"
+date: "2/16/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#install packages
+```{r,echo = TRUE}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+library(tidyr)
+library(patchwork)
+library(rjson)
+library(geosphere)
+library(data.table)
+```
+## read dataframe
+
+```{r}
+df=read.csv("lyon_housing.csv")
+
+metro_df=fromJSON(file = "data/station_coordinates.json")
+i=0
+lat=vector()
+lon=vector()
+names=vector()
+for (variable in metro_df) {
+  for (v in variable) {
+    for (x in v) {
+         if (i%%3==0) {
+            names=c(names,x)
+         }
+         if (i%%3==1) {
+            lat=c(lat,x)
+         }
+         if (i%%3==2) {
+            lon=c(lon,x)
+         }
+      
+    }
+      i=i+1
+  }
+}
+
+metro_df=data.frame(names,lat,lon)
+
+
+# View(df)
+```
+
+
+
+
+# part EDA
+
+```{r}
+
+# sum(is.na(df$latitudel))
+df %>% summarise_all(~ sum(is.na(.)))
+
+clean_df=df[!is.na(df$latitude),]
+# View(clean_df)
+
+
+
+
+
+clean_df=mutate(clean_df,price_surface=clean_df$price/clean_df$surface_housing,price_room=clean_df$price/clean_df$rooms_count)
+
+
+dis_f_metro=vector()
+for (home in 1:length(clean_df$latitude)){
+  lat1 = clean_df[home,12]
+  lon1 = clean_df[home,13]
+  dis_from_metro = distm(c(lon1, lat1), cbind(metro_df$lon, metro_df$lat), fun = distHaversine)
+  min_dis_from_metro = min(dis_from_metro)
+  dis_f_metro = c(dis_f_metro, min_dis_from_metro)
+} 
+clean_df=mutate(clean_df,dis_from_metro=dis_f_metro)
+
+
+# View(clean_df)
+
+
+```
+
+<div dir="auto">
+
+برای هر ستون تعداد داده های گم شده را پیدا میکنیم و مشاهدع میکنیم که فقط ستون های  
+surface_effective_usable و latitude و
+longitude و 
+ هستند که مقادیر NA دارند .
+حال برای پاک سازی دیتا ها ، خانه هایی که مختصات ندارند را حذف میکنیم .
+ دو ستون را که فکر میکردم بکار بیایند را اضافه میکنم که عبارت هستند از قیمت برحسب مساحت و قیمت بر حسب تعداد اتاق.
+ 
+ همچنین در پایین  میتوانیم یک خلاصه از تمام ستون ها ببینیم که نوع مقادیر ان و اینکه چه مقادیری میگرند را میتوانیم ببینیم.  دو ستون  
+ type_purchaseوtype_property و 
+ چون فقط دو مقدار میگیرند را تبدیل به فاکتور میکنیم و تعداد خانه های از نوع انهارا میتوانیم در زیر مشاهده کنیم . همچنین ستون هایی که مقادیر عددی دارند هم میتوانیم مینیمم و ماکسیمم و میانه و میانگین و چارک اول و سوم را ببینیم .
+</div>
+
+```{r}
+clean_df$type_purchase=as.factor(clean_df$type_purchase)
+clean_df$type_property=as.factor(clean_df$type_property)
+summary(clean_df)
+```
+
+<div dir="auto">
+حالا هیستوگرام ستون های عددی را نشان میدهیم و از این میفهمیم که فراوانی داده ها چه توزیعی دارد  یا به عبارت دیگر داده ها چگونه بر حسب اون پارامتر پراکنده هستند 
+
+همچنین ممتوجه داده های پرت موجود میشویم . مثلا در ستون surface_terrain میبینیم که هستوگرام به خاطر داده پرت خراب شده است  یا در قیمت خانه ها یک خانه بسیار گران قیمت وجود دارد 
+
+</div>
+```{r}
+hist(clean_df$surface_housing)
+hist(clean_df$rooms_count)
+hist(clean_df$surface_effective_usable)
+hist(clean_df$surface_terrain)
+hist(clean_df$parkings_count)
+hist(clean_df$price)
+hist(clean_df$price_surface)
+
+```
+
+<div dir="auto">
+ حالا میخواهیم ارتباط ستون های مختلف یا یکدیگر را بررسی کنیم 
+ برای همین از ستون های مختلف بر حسب هم رگرسون خطی حساب میکنیم  و نمودار انهارا بر حسب هم نشان میدهیم .
+ 
+</div>
+
+
+```{r}
+surface_price_reg=lm(clean_df$price~clean_df$surface_housing)
+summary(surface_price_reg)
+
+plot(x=clean_df$surface_housing,y=clean_df$price,xlab = "surface",ylab = "price")
+abline(surface_price_reg)
+
+```
+
+<div dir="auto">
+ با توجه به نمودار بالا وضذیب های رگرسون و مقدار  R میتوان دید که رابطه خطی ای بین قیمت ومساحت است 
+</div>
+
+
+
+
+
+
+```{r}
+surface_room_reg=lm(clean_df$rooms_count~clean_df$surface_housing)
+summary(surface_room_reg)
+
+plot(x=clean_df$surface_housing,y=clean_df$rooms_count,xlab = "surface",ylab = "room")
+abline(surface_room_reg)
+
+
+
+```
+
+
+<div dir="auto">
+همچینین با توجه به نمودار بالا وضرایب رگرسون و مقدار  R میتوان دید که رابطه خطی ای بین تعداد اتاق ومساحت برقارار  است 
+</div>
+
+
+```{r}
+room_price_reg=lm(clean_df$price~clean_df$rooms_count)
+summary(room_price_reg)
+
+plot(x=clean_df$rooms_count,y=clean_df$price,xlab = "room",ylab = "price")
+abline(room_price_reg)
+
+
+
+```
+
+
+
+```{r}
+(ggplot() +geom_point( data=clean_df, aes(y=latitude, x=longitude,color = as.factor(district)),size=.5 ))
+
+ ( ggplot() +geom_point( data=clean_df, aes(y=latitude, x=longitude,color = price),size=.5 )+scale_color_gradient(low = 'blue', high = 'red'))
+
+
+```
+
+<div dir="auto">
+
+با توجه به نقشه های بالا میتوان نتیجه گرفت که مناطق مرکزی از قیمت بیشتری برخودار هستند 
+</div>
+
+
+
+# part 2 - Inference & Visualization
+```{r}
+appartement_df=filter(clean_df,clean_df$type_property=="appartement")
+maison_df=filter(clean_df,clean_df$type_property=="maison")
+
+t.test(maison_df$surface_housing ,appartement_df$surface_housing  )
+
+
+hist(maison_df$surface_housing)
+hist(appartement_df$surface_housing)
+```
+
+<div dir="auto">
+ اگر فرض صفر را مبنی بر برابر بودن مساحت خانه و اپارتمان بگیریم و  تی تست را انجلم دهیم ، میبینم که با توجه به کم بودن p_value این فرض رد میشود. به این معنا که مساحت این دو با هم برابر نیستندو به عبارتی ارتباط نداردن
+</div>
+
+
+```{r}
+price_metro_reg=lm(clean_df$price~clean_df$dis_from_metro)
+plot(y=clean_df$price, x=clean_df$dis_from_metro)
+summary(price_metro_reg)
+abline(price_metro_reg,col="red")
+
+```
+
+<div dir="auto">
+در بالا میخواستیم بررسی کنیم که ایا فاصله خانه تا ایستگاه مترو در قیمت خانه تاثیر خطی دارد یا نه و با توجه به p_value و  R میتوانیم برداشت کنیم که حداقل به صورت خطی با هم در ارتباط نیستند .
+</div>
+
+
+
+
+
+
+
+
+```{r}
+boxplot(data=clean_df,clean_df$rooms_count~cut(clean_df$surface_housing,pretty(clean_df$surface_housing)),xlab = "surface", ylab = "room")
+```
+
+<div dir="auto">
+
+
+
+از نمودار جعبه ای بالا میتوان فهمید که هر چه مساحت خانه بیشتر باشد ، تعداد اتاق های بیشتری دارد  ولی از جایی به بعد دیگر تعداد اتاق ها بیشتر نشده و همچنین در خانه هایی با مساحت بین ۵۰ تا ۱۵۰ بیشترین تنوع در تعداد اتاق را داریم 
+
+
+</div>
+
+
+
+
+```{r}
+
+
+df1=filter(clean_df,clean_df$district=="Villeurbanne")
+tdf1=aggregate(df1[,9],list(substr(as.character(df1$date_transaction),1,4)),mean)
+
+
+
+df2=filter(clean_df,clean_df$district=="Lyon 1er Arrondissement")
+df3=filter(clean_df,clean_df$district=="Lyon 2e Arrondissement")
+df4=filter(clean_df,clean_df$district=="Lyon 3e Arrondissement")
+df5=filter(clean_df,clean_df$district=="Lyon 4e Arrondissement")
+df6=filter(clean_df,clean_df$district=="Lyon 5e Arrondissement")
+df7=filter(clean_df,clean_df$district=="Lyon 6e Arrondissement")
+df8=filter(clean_df,clean_df$district=="Lyon 7e Arrondissement")
+df9=filter(clean_df,clean_df$district=="Lyon 8e Arrondissement")
+df10=filter(clean_df,clean_df$district=="Lyon 9e Arrondissement")
+
+
+tdf2=aggregate(df2[,9],list(substr(as.character(df2$date_transaction),1,4)),mean)
+tdf3=aggregate(df3[,9],list(substr(as.character(df3$date_transaction),1,4)),mean)
+tdf4=aggregate(df4[,9],list(substr(as.character(df4$date_transaction),1,4)),mean)
+tdf5=aggregate(df5[,9],list(substr(as.character(df5$date_transaction),1,4)),mean)
+tdf6=aggregate(df6[,9],list(substr(as.character(df6$date_transaction),1,4)),mean)
+tdf7=aggregate(df7[,9],list(substr(as.character(df7$date_transaction),1,4)),mean)
+tdf8=aggregate(df8[,9],list(substr(as.character(df8$date_transaction),1,4)),mean)
+tdf9=aggregate(df9[,9],list(substr(as.character(df9$date_transaction),1,4)),mean)
+tdf10=aggregate(df10[,9],list(substr(as.character(df10$date_transaction),1,4)),mean)
+
+
+
+
+
+```
+```{r}
+ggplot(data = tdf1,aes(y=x,x=Group.1))+geom_point()
+ggplot(data = tdf2,aes(y=x,x=Group.1))+geom_point()
+ggplot(data = tdf3,aes(y=x,x=Group.1))+geom_point()
+ggplot(data = tdf4,aes(y=x,x=Group.1))+geom_point()
+ggplot(data = tdf5,aes(y=x,x=Group.1))+geom_point()
+ggplot(data = tdf6,aes(y=x,x=Group.1))+geom_point()
+ggplot(data = tdf7,aes(y=x,x=Group.1))+geom_point()
+ggplot(data = tdf8,aes(y=x,x=Group.1))+geom_point()
+ggplot(data = tdf9,aes(y=x,x=Group.1))+geom_point()
+ggplot(data = tdf10,aes(y=x,x=Group.1))+geom_point()
+
+
+
+
+
+```
+
+
+<div dir="auto">
+
+
+
+
+
+ به وضوح میبینم که قیمت ها بر حسب سال برای همه مناطق صعودی هستند که نشان دهنده تورم و افزایش قیمت ملک است
+
+
+</div>
+
+
+
+
+
+
+# part 3 - Estimation
+
+
+
+
+
+
+
+
+```{r}
+xx=45.780234113880425
+yy=4.865561717882041
+tmp =data.frame(clean_df)
+dis_from_me = distm(c(yy, xx), cbind(tmp$longitude , tmp$latitude), fun = distHaversine)
+tmp$ditance=as.vector(dis_from_me)
+tmp=filter(tmp,tmp$price<100000)
+tmp=filter(tmp,tmp$ditance<2000)
+tmp=filter(tmp,tmp$parkings_count>0)
+tmp=filter(tmp,tmp$surface_housing>30)
+tmp=filter(tmp,tmp$dis_from_metro<300)
+
+a1=10
+a2=1
+a3=.1
+a4=2
+a5=5
+tmp=mutate(tmp,point= (tmp$price/mean(tmp$price)*a1)+ (tmp$ditance/mean(tmp$ditance)*a2)+(tmp$parkings_count/mean(tmp$parkings_count)*a3)+(tmp$surface_housing/mean(tmp$surface_housing)*a4)+(tmp$dis_from_metro/mean(tmp$dis_from_metro)*a5) )
+
+print(tmp[tmp$point>=max(tmp$point),])
+
+
+```
+
+
+
+<div dir="auto">
+
+
+
+من برای انتخاب خانه اول به قیمت ان و بعد میزان دوری ان از وسایل نقلیه عمومی که اینجا مترو است و بعد از ان مساح وتعداد اتاق و پارکینگ هست.
+پس کافی بود که به اعمال فیلتر هایی خانه هایی که در ترجیحات من نیستند را حذ کنم و سپس با دادن ضرایب با توجه به   میزان اهمیت ان معیار ها مقدار امتیاز را برای هر خانه حساب کنم و ان خانه ای که بیشترین امتیاز را دارد انتخاب کنم . 
+
+
+</div>
+
+
+
+
+

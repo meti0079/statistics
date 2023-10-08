@@ -1,0 +1,252 @@
+---
+title: "first"
+output: html_document
+---
+
+
+#install packages
+```{r}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+```
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Problem 1 part a (i)
+
+
+
+### probability mass function of  poisson 
+
+```{r}
+x2<- 0:20
+y2<-dpois(x2,4)
+plot(x2,y2)
+```
+
+
+## Problem 1 part a (ii)
+
+### sample of poisson n=10
+
+```{r}
+  sample=rpois(50,4)
+ means=c(mean(sample))
+
+for (i in 2:10) {
+  sample=rpois(50,4)
+  means=c(means,mean(sample))
+  
+}
+ hist(means)
+```
+
+
+### sample of poisson n=100
+
+```{r}
+  sample1=rpois(50,4)
+ means1=c(mean(sample1))
+
+for (i in 2:100) {
+  sample1=rpois(50,4)
+  means1=c(means1,mean(sample1))
+  
+}
+  hist(means1)
+```
+
+
+
+
+
+### sample of poisson n=1000
+
+```{r}
+  sample2=rpois(50,4)
+ means2=c(mean(sample2))
+
+for (i in 2:1000) {
+  sample2=rpois(50,4)
+  means2=c(means2,mean(sample2))
+  
+}
+  hist(means2)
+```
+
+
+## Problem 1 part a (iii)
+
+```{r}
+meanofmeans=mean(means)
+meanofmeans1=mean(means1)
+meanofmeans2=mean(means2)
+varofmeans=var(means)
+varofmeans1=var(means1)
+varofmeans2=var(means2)
+print(meanofmeans)
+print(meanofmeans1)
+print(meanofmeans2)
+print(varofmeans)
+print(varofmeans1)
+print(varofmeans2)
+
+
+
+```
+
+
+```{r}
+nmeans=(means-meanofmeans)/sqrt(varofmeans)
+nrange=seq(min(nmeans),max(nmeans),length=10)
+normal=dnorm(nrange)
+hist(nmeans,freq = FALSE,ylim = c(0,.4))
+lines(nrange,normal,col='red')
+```
+
+```{r}
+nmeans1=(means1-meanofmeans1)/sqrt(varofmeans1)
+nrange1=seq(min(nmeans1),max(nmeans1),length=100)
+normal1=dnorm(nrange1)
+hist(nmeans1,freq = FALSE)
+lines(nrange1,normal1,col='red')
+```
+
+
+
+
+```{r}
+nmeans2=(means2-meanofmeans2)/sqrt(varofmeans2)
+nrange2=seq(min(nmeans2),max(nmeans2),length=1000)
+normal2=dnorm(nrange2)
+hist(nmeans2,freq = FALSE,ylim = c(0,0.4))
+lines(nrange2,normal2,col='red')
+```
+
+
+
+## Problem 1 part b
+### instal fastR2 
+
+```{r}
+library(fastR2)
+View(Births)
+```
+### get max and min of data births (part i)
+
+```{r}
+df=group_by(Births,day_of_year)
+df=summarise(df,mean_of_days=mean(births))
+minday=df[df$mean_of_days<= min(df$mean_of_days),]
+maxday=df[df$mean_of_days>= max(df$mean_of_days),]
+minday[[1]]
+maxday[[1]]
+
+```
+
+
+### month  (part ii)
+
+```{r}
+mon=group_by(Births,month)
+mon=summarize(mon,mean_of_month=mean(births))
+sorted=arrange(mon,desc(mean_of_month))
+print(mon)
+print(sorted)
+```
+
+### year  (part iii)
+```{r}
+years=group_by(Births,year)
+years=summarize(years,mean_of_year=mean(births))
+print(years)
+years$year=as.factor(years$year)
+ggplot(data=years,aes(x=year,y=mean_of_year))+geom_bar(stat = "identity")
+
+```
+
+
+
+
+
+
+
+
+## Problem 1 part c
+
+```{r}
+stormssorted=storms[order(storms$year,storms$month,storms$day,storms$hour),]
+write_csv(stormssorted,"stormssorted.csv")
+
+
+
+library(maps)
+World <- map_data("world") %>% filter(region=="USA")
+
+stormssorted$status=as.factor(stormssorted$status)
+
+ggplot() +geom_point( data=stormssorted, aes(x=long, y=lat , color = as.factor(status)), size = 0.5)
+
+
+
+
+ggplot() +
+  geom_polygon(data = World, aes(x=long, y = lat), fill="grey", alpha=1)+
+  geom_point( data=stormssorted, aes(x=long, y=lat , color = as.factor(status)), size = 0.5) + 
+  theme_void() +xlim(-150 , 0)+ ylim(0,55) + coord_map()
+
+
+```
+
+
+
+
+
+
+
+
+
+# problem 2
+##part a i
+```{r}
+dataframe1=read.delim("had.txt",col.names = c("age","sex","pain","blood pressure","cholestrol","blood sugar", "lable"))
+# View(dataframe1)
+lable=dplyr::select(dataframe1,lable)
+# View(lable)
+features=dplyr::select(dataframe1,!lable)
+# View(features)
+```
+##part a ii
+```{r}
+
+samples=sample(nrow(features),nrow(features)*.8)
+train_feature=dplyr::slice(features,samples)
+train_lable=dplyr::slice(lable,samples)
+test_feature=dplyr::slice(features,-samples)
+test_lable=dplyr::slice(lable,-samples)
+
+
+
+
+# View(train_feature)
+# View(train_lable)
+# View(test_feature)
+# View(test_lable)
+
+write.table(train_feature,"train_feature.txt",row.names = FALSE,col.names = FALSE)
+write.table(test_feature,"test_feature.txt",row.names = FALSE,col.names = FALSE)
+write.table(train_lable,"train_lable.txt",row.names = FALSE,col.names = FALSE)
+write.table(test_lable,"test_lable.txt",row.names = FALSE,col.names = FALSE)
+
+
+```
+
+
+
+
+
